@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gtk/gtk.h>
+#include <cairo.h>
+
 
 #define TRAINING_IMAGES  ((const unsigned char *)"train-images.idx3-ubyte")
 #define TRAINING_LABELS  ((const unsigned char *)"train-labels.idx1-ubyte")
@@ -24,7 +26,7 @@ typedef struct {
     double power;
 
     /** The digit represented by this output (0-9) */
-    char value;
+    unsigned char value;
 } OutputNeuron;
 
 /** Each synapse represents a connection between an Input- and an OutputNeuron */
@@ -35,10 +37,10 @@ struct Synapses {
 };
 
 typedef struct Images {
-    char* pixels;
+    unsigned char* pixels;
 
     /** The digit represented by this image (0-9) */
-    char value;
+    unsigned char value;
 } Image;
 
 /** Create the network and return an array of the input neurons */
@@ -181,20 +183,53 @@ Image *load_image_set(char* images_file, char* labels_file, int number_of_images
     return images;
 }
 
-static void helloWorld (GtkWidget *wid, GtkWidget *win)
+Image *image;
+
+static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
+    gpointer user_data)
 {
-  GtkWidget *dialog = NULL;
-  dialog = gtk_message_dialog_new (GTK_WINDOW (win), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, "Hello World!");
-  gtk_window_set_position (GTK_WINDOW (dialog), GTK_WIN_POS_CENTER);
-  gtk_dialog_run (GTK_DIALOG (dialog));
-  gtk_widget_destroy (dialog);
+    for (int i = 0; i < 28; i++)
+    {
+        for (int j = 0; j < 28; j++)
+        {
+            cairo_set_source_rgb(cr, 255, 255, 255);
+
+            unsigned char c;
+            if ((c = image->pixels[i*28+j]) > 100)
+                cairo_set_source_rgb(cr, 1 - c / 255.0, 1 - c / 255.0, 1 - c / 255.0);
+
+            cairo_rectangle(cr, 50 + 20 * j, 50 + 20 * i, 20, 20);
+            cairo_fill(cr);
+        }
+    }
+
+    cairo_set_source_rgb(cr, 0.1, 0.1, 0.1);
+
+  cairo_select_font_face(cr, "Purisa",
+      CAIRO_FONT_SLANT_NORMAL,
+      CAIRO_FONT_WEIGHT_BOLD);
+
+  cairo_set_font_size(cr, 13);
+
+    cairo_move_to(cr, 20, 30);
+
+    /** Interpret the char as an int, then shift it to the integer which represents the original integer
+        as a char. Save in tmp c variable because cairo_show_text expects a pointer and it's a lvalue.*/
+    char c = ((int)image->value) + '0';
+    cairo_show_text(cr, &c);
+
+    return FALSE;
 }
 
 int main (int argc, char *argv[])
 {
-  GtkWidget *button = NULL;
+    InputNeuron *inputs = create_network();
+    Image *training_images = load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 60000);
+    train_network(inputs, 28 * 28, training_images, 60000);
+    image = &training_images[2];
+    //Image *test_images = load_image_set(TEST)
   GtkWidget *win = NULL;
-  GtkWidget *vbox = NULL;
+  GtkWidget *darea = NULL;
 
   /* Initialize GTK+ */
   g_log_set_handler ("Gtk", G_LOG_LEVEL_WARNING, (GLogFunc) gtk_false, NULL);
@@ -204,22 +239,18 @@ int main (int argc, char *argv[])
   /* Create the main window */
   win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_container_set_border_width (GTK_CONTAINER (win), 8);
-  gtk_window_set_title (GTK_WINDOW (win), "Hello World");
+  gtk_window_set_title (GTK_WINDOW (win), "MNIST");
   gtk_window_set_position (GTK_WINDOW (win), GTK_WIN_POS_CENTER);
+  gtk_window_maximize(GTK_WINDOW (win));
   gtk_widget_realize (win);
   g_signal_connect (win, "destroy", gtk_main_quit, NULL);
 
-  /* Create a vertical box with buttons */
-  vbox = gtk_vbox_new (TRUE, 6);
-  gtk_container_add (GTK_CONTAINER (win), vbox);
+  darea = gtk_drawing_area_new();
+  gtk_container_add(GTK_CONTAINER(win), darea);
 
-  button = gtk_button_new_from_stock (GTK_STOCK_DIALOG_INFO);
-  g_signal_connect (G_OBJECT (button), "clicked", G_CALLBACK (helloWorld), (gpointer) win);
-  gtk_box_pack_start (GTK_BOX (vbox), button, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(darea), "draw",
+      G_CALLBACK(on_draw_event), NULL);
 
-  button = gtk_button_new_from_stock (GTK_STOCK_CLOSE);
-  g_signal_connect (button, "clicked", gtk_main_quit, NULL);
-  gtk_box_pack_start (GTK_BOX (vbox), button, TRUE, TRUE, 0);
 
   /* Enter the main loop */
   gtk_widget_show_all (win);
