@@ -1,10 +1,68 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
 
+typedef struct Synapses Synapse;
+
+/** Each InputNeuron represents one pixel in a 28 * 28 image */
+typedef struct {
+    /** Array of outgoing synapses from this input one to each of the outputs.
+        If the pixel represented by this neuron is not white, the target of each
+        synapse is accessed and its power increased by the weight of the synapse. */
+    Synapse *synapses;
+} InputNeuron;
+
+/** Each OutputNeuron represents one of ten digits (0-9) */
+typedef struct {
+    /** Represents the likelihood this value matches the input image. Highest output wins */
+    int power;
+
+    /** The digit represented by this output (0-9) */
+    char value;
+} OutputNeuron;
+
+/** Each synapse represents a connection between an Input- and an OutputNeuron */
+struct Synapses {
+    /** The target of this synapse */
+    OutputNeuron *target;
+
+    /** Weight of this synapse. */
+    int weight;
+};
+
+/** Create the network and return an array of the input neurons */
+InputNeuron *create_network() {
+    OutputNeuron *outputs;
+    InputNeuron *inputs;
+
+    /** Create the outputs and assign values*/
+    outputs = malloc(10 * sizeof(OutputNeuron));
+    for (int i = 0; i < 10; i++)
+    {
+        outputs[i].value = i;
+        outputs[i].power = 0;
+    }
+
+    /** Create the inputs and the synapses.
+        Outer loop iterates through the inputs and
+        creates the synapses for each input, inner loop iterates through
+        the synapses and connects the outputs with the synapses. */
+    inputs = malloc(28 * 28 * sizeof(InputNeuron));
+    for (int i = 0; i < 28 * 28; i++)
+    {
+        inputs[i].synapses = malloc(10 * sizeof(Synapse));
+        for (int j = 0; j < 10; j++)
+        {
+            inputs[i].synapses[j].weight = 0;
+            inputs[i].synapses[j].target = &(outputs[j]);
+        }
+    }
+
+    return inputs;
+}
+
 static void helloWorld (GtkWidget *wid, GtkWidget *win)
 {
   GtkWidget *dialog = NULL;
-
   dialog = gtk_message_dialog_new (GTK_WINDOW (win), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, "Hello World!");
   gtk_window_set_position (GTK_WINDOW (dialog), GTK_WIN_POS_CENTER);
   gtk_dialog_run (GTK_DIALOG (dialog));
@@ -13,6 +71,8 @@ static void helloWorld (GtkWidget *wid, GtkWidget *win)
 
 int main (int argc, char *argv[])
 {
+
+
   GtkWidget *button = NULL;
   GtkWidget *win = NULL;
   GtkWidget *vbox = NULL;
