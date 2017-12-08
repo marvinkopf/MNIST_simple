@@ -183,7 +183,39 @@ Image *load_image_set(char* images_file, char* labels_file, int number_of_images
     return images;
 }
 
+unsigned char evaluate_image(Image *image, InputNeuron *inputs)
+{
+    /** Reset the outputs powers */
+    for (int i = 0; i < 10; i++)
+    {
+        inputs[0].synapses[i].target->power = 0.00;
+    }
+
+    for (int i = 0; i < 28 * 28; i++)
+    {
+        if (image->pixels[i] > 230)
+        {
+            for (int j = 0; j < 10; j++)
+            {
+                inputs[i].synapses[j].target->power += inputs[i].synapses[j].weight;
+            }
+        }
+    }
+
+    OutputNeuron *winner = inputs[0].synapses[0].target;
+    for (int i = 1; i < 10; i++)
+    {
+        if (inputs[0].synapses[i].target->power > winner->power)
+        {
+            winner = inputs[0].synapses[i].target;
+        }
+    }
+
+    return winner->value;
+}
+
 Image *image;
+unsigned char guess;
 
 static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
     gpointer user_data)
@@ -215,19 +247,37 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
 
     /** Interpret the char as an int, then shift it to the integer which represents the original integer
         as a char. Save in tmp c variable because cairo_show_text expects a pointer and it's a lvalue.*/
-    char c = ((int)image->value) + '0';
+    char c = ((int)guess) + '0';
     cairo_show_text(cr, &c);
 
     return FALSE;
 }
 
+int df = 0;
+InputNeuron *inputs;
+Image *test_images;
+static gboolean clicked(GtkWidget *widget, GdkEventButton *event,
+    gpointer user_data)
+{
+    guess = evaluate_image(&test_images[df], inputs);
+    image = &test_images[df];
+    df++;
+    gtk_widget_queue_draw(widget);
+    return TRUE;
+}
+
 int main (int argc, char *argv[])
 {
-    InputNeuron *inputs = create_network();
+    inputs = create_network();
     Image *training_images = load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 60000);
     train_network(inputs, 28 * 28, training_images, 60000);
     image = &training_images[2];
-    //Image *test_images = load_image_set(TEST)
+    test_images = load_image_set(TEST_IMAGES, TEST_LABELS, 10000);
+    guess = evaluate_image(&test_images[4], inputs);
+    image = &test_images[4];
+
+
+
   GtkWidget *win = NULL;
   GtkWidget *darea = NULL;
 
@@ -251,6 +301,8 @@ int main (int argc, char *argv[])
   g_signal_connect(G_OBJECT(darea), "draw",
       G_CALLBACK(on_draw_event), NULL);
 
+  g_signal_connect(win, "button-press-event",
+  G_CALLBACK(clicked), NULL);
 
   /* Enter the main loop */
   gtk_widget_show_all (win);
