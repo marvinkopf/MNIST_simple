@@ -216,6 +216,7 @@ unsigned char evaluate_image(Image *image, InputNeuron *inputs)
 
 Image *image;
 unsigned char guess;
+double right = 0.00d;
 
 static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
     gpointer user_data)
@@ -241,14 +242,23 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
       CAIRO_FONT_SLANT_NORMAL,
       CAIRO_FONT_WEIGHT_BOLD);
 
-  cairo_set_font_size(cr, 13);
+  cairo_set_font_size(cr, 16);
 
-    cairo_move_to(cr, 20, 30);
+    cairo_move_to(cr, 200, 30);
 
     /** Interpret the char as an int, then shift it to the integer which represents the original integer
         as a char. Save in tmp c variable because cairo_show_text expects a pointer and it's a lvalue.*/
-    char c = ((int)guess) + '0';
-    cairo_show_text(cr, &c);
+    char c[20] = "Computer guessed: ";
+    c[18] = (int)guess + '0';
+    cairo_show_text(cr, c);
+
+    cairo_move_to(cr, 650, 30);
+
+    char buf[35] = "Computer correctly guessed: ";
+sprintf(buf + 28,"%f",right * 100);
+    buf[33] = '%';
+    buf[34] = '\0';
+    cairo_show_text(cr, buf);
 
     return FALSE;
 }
@@ -269,13 +279,20 @@ static gboolean clicked(GtkWidget *widget, GdkEventButton *event,
 int main (int argc, char *argv[])
 {
     inputs = create_network();
-    Image *training_images = load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 60000);
-    train_network(inputs, 28 * 28, training_images, 60000);
-    image = &training_images[2];
+    Image *training_images = load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 2000);
+    train_network(inputs, 28 * 28, training_images, 2000);
     test_images = load_image_set(TEST_IMAGES, TEST_LABELS, 10000);
-    guess = evaluate_image(&test_images[4], inputs);
-    image = &test_images[4];
+    guess = evaluate_image(&test_images[0], inputs);
+    image = &test_images[0];
 
+    int correct = 0;
+    for (int i = 0; i < 10000; i++)
+    {
+        if (evaluate_image(&test_images[i], inputs) == test_images[i].value)
+            correct++;
+    }
+
+    right = correct / 10000.00;
 
 
   GtkWidget *win = NULL;
