@@ -13,7 +13,7 @@ Weights are increased with the following formula
 ```
 weight += 0.5 - weight / 2
 ```
-which converges against 1. Since it does happen fairly quickly, too much training will reduce the prediction rate.
+which converges to 1. Because it does happen fairly quickly, too much training will reduce the prediction rate.
 
 The network can correctly identify ~40% of the test images after training with 60k images, but this can be improved to ~70%
 when the training size is reduced to 2k.
