@@ -1,5 +1,11 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 #include <gtk/gtk.h>
+
+#define TRAINING_IMAGES  ((const unsigned char *)"train-images.idx3-ubyte")
+#define TRAINING_LABELS  ((const unsigned char *)"train-labels.idx1-ubyte")
+
 
 typedef struct Synapses Synapse;
 
@@ -22,12 +28,17 @@ typedef struct {
 
 /** Each synapse represents a connection between an Input- and an OutputNeuron */
 struct Synapses {
-    /** The target of this synapse */
     OutputNeuron *target;
 
-    /** Weight of this synapse. */
     int weight;
 };
+
+typedef struct Images {
+    char* pixels;
+
+    /** The digit represented by this image (0-9) */
+    char value;
+} Image;
 
 /** Create the network and return an array of the input neurons */
 InputNeuron *create_network() {
@@ -60,6 +71,115 @@ InputNeuron *create_network() {
     return inputs;
 }
 
+/** Trains the weights of the synapses for a given set of images. */
+void train_network(InputNeuron *inputs, size_t inputs_size, Image *images, size_t images_size) {
+    for (int i = 0; i < images_size; i++)
+    {
+        /** Loop through the inputs/pixels */
+        for (int j = 0; j < inputs_size; j++)
+        {
+            /** MNIST uses greyscales, for now this function tries to see a pixel as 0 or 1 */
+            if (images[i].pixels[j] > 230)
+            {
+                /** Loop through the outgoing synapses for the current input */
+                for (int t = 0; t < 10; t++)
+                {
+                    /** Increase the weight of the synapse which targets the output which
+                        represents the current immage */
+                    if (inputs[j].synapses[t].target->value == images[i].value)
+                    {
+                        inputs[j].synapses[t].weight += 0.5 - (inputs[j].synapses[t].weight / 2);
+                    }
+                }
+            }
+        }
+    }
+}
+
+Image *load_image_set(char* images_file, char* labels_file, int number_of_images)
+{
+    Image *images = malloc (number_of_images * sizeof(Image));
+
+    /** Taken from http://www.cplusplus.com/reference/cstdio/fread/ */
+    FILE *pFile;
+    long lSize;
+    char* buffer;
+    size_t result;
+
+    pFile = fopen ( images_file , "rb" );
+    if (pFile==NULL) {
+    printf("Oh dear, something went wrong with read()! %s\n", strerror(errno));
+        exit (1);
+    }
+
+    // obtain file size:
+    fseek (pFile , 0 , SEEK_END);
+    lSize = ftell (pFile);
+    rewind (pFile);
+
+    // allocate memory to contain the whole file:
+    buffer = (char*) malloc (sizeof(char)*lSize);
+    if (buffer == NULL) {
+        fputs ("Memory error",stderr);
+        exit (2);
+    }
+
+    // copy the file into the buffer:
+    result = fread (buffer,1,lSize,pFile);
+    if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+
+    /** Read the pixels for each image. */
+    for (int i = 0; i < number_of_images; i++)
+    {
+        images[i].pixels = malloc(28 * 28);
+        for (int j = 0; j < 28 * 28; j++)
+        {
+            /** (i * 28 * 28): Index of the current image multiplied by image size.
+                16: Payload of the file, can be ignored.
+                j: Index of the current pixel of the current image. */
+            images[i].pixels[j] = buffer[(i * 28 * 28) + 16 + j];
+        }
+    }
+
+    // terminate
+    fclose (pFile);
+    free (buffer);
+
+    pFile = fopen ( labels_file , "rb" );
+    if (pFile==NULL) {
+        fputs ("File error",stderr);
+        exit (1);
+    }
+
+    // obtain file size:
+    fseek (pFile , 0 , SEEK_END);
+    lSize = ftell (pFile);
+    rewind (pFile);
+
+    // allocate memory to contain the whole file:
+    buffer = (char*) malloc (sizeof(char)*lSize);
+    if (buffer == NULL) {
+        fputs ("Memory error",stderr);
+        exit (2);
+    }
+
+    // copy the file into the buffer:
+    result = fread (buffer,1,lSize,pFile);
+    if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+
+    /** Read the labels for each image */
+    for (int i = 0; i < number_of_images; i++)
+    {
+        images[i].value = buffer[i + 8];
+    }
+
+    // terminate
+    fclose (pFile);
+    free (buffer);
+
+    return images;
+}
+
 static void helloWorld (GtkWidget *wid, GtkWidget *win)
 {
   GtkWidget *dialog = NULL;
@@ -71,8 +191,7 @@ static void helloWorld (GtkWidget *wid, GtkWidget *win)
 
 int main (int argc, char *argv[])
 {
-
-
+    load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 60000);
   GtkWidget *button = NULL;
   GtkWidget *win = NULL;
   GtkWidget *vbox = NULL;
