@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <gtk/gtk.h>
 
 #define TRAINING_IMAGES  ((const unsigned char *)"train-images.idx3-ubyte")
 #define TRAINING_LABELS  ((const unsigned char *)"train-labels.idx1-ubyte")
 
+#define TEST_IMAGES  ((const unsigned char *)"t10k-images.idx3-ubyte")
+#define TEST_LABELS  ((const unsigned char *)"t10k-labels.idx1-ubyte")
 
 typedef struct Synapses Synapse;
 
@@ -20,7 +21,7 @@ typedef struct {
 /** Each OutputNeuron represents one of ten digits (0-9) */
 typedef struct {
     /** Represents the likelihood this value matches the input image. Highest output wins */
-    int power;
+    double power;
 
     /** The digit represented by this output (0-9) */
     char value;
@@ -30,7 +31,7 @@ typedef struct {
 struct Synapses {
     OutputNeuron *target;
 
-    int weight;
+    double weight;
 };
 
 typedef struct Images {
@@ -108,7 +109,7 @@ Image *load_image_set(char* images_file, char* labels_file, int number_of_images
 
     pFile = fopen ( images_file , "rb" );
     if (pFile==NULL) {
-    printf("Oh dear, something went wrong with read()! %s\n", strerror(errno));
+        fputs ("File error",stderr);
         exit (1);
     }
 
@@ -191,7 +192,6 @@ static void helloWorld (GtkWidget *wid, GtkWidget *win)
 
 int main (int argc, char *argv[])
 {
-    load_image_set(TRAINING_IMAGES, TRAINING_LABELS, 60000);
   GtkWidget *button = NULL;
   GtkWidget *win = NULL;
   GtkWidget *vbox = NULL;
